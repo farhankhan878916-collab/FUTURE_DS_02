@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbit SaaS — Customer Retention & Churn Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{
+    --bg:#F3F4F7;
+    --card:#FFFFFF;
+    --ink:#141B24;
+    --muted:#71798A;
+    --border:#E5E8EE;
+    --violet:#5B4FE0;
+    --violet-soft:#E9E7FB;
+    --coral:#D14B4B;
+    --coral-soft:#F8E1E1;
+    --amber:#E2A63B;
+    --green:#1F9D6E;
+    --navy-deep:#181A3D;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1320px;margin:0 auto;padding:28px 32px 64px;}
+
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    margin-bottom:22px;flex-wrap:wrap;gap:16px;
+  }
+  .brand-eyebrow{
+    font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.14em;
+    text-transform:uppercase;color:var(--violet);margin-bottom:6px;
+  }
+  h1{
+    font-family:'Sora',sans-serif;font-weight:800;font-size:32px;margin:0;
+    color:var(--navy-deep);letter-spacing:-.01em;
+  }
+  .subtitle{color:var(--muted);font-size:14px;margin-top:6px;}
+  .period-pill{
+    background:var(--navy-deep);color:#fff;font-family:'IBM Plex Mono',monospace;
+    font-size:12px;padding:8px 14px;border-radius:100px;white-space:nowrap;
+  }
+
+  /* ---------- Churn gauge ribbon ---------- */
+  .gauge-row{
+    display:flex;align-items:center;gap:16px;margin:18px 0 28px;
+    padding:14px 18px;background:var(--card);border:1px solid var(--border);border-radius:12px;
+  }
+  .gauge-label{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);white-space:nowrap;}
+  .gauge-track{flex:1;height:10px;border-radius:6px;background:var(--violet-soft);position:relative;overflow:hidden;}
+  .gauge-fill{height:100%;background:linear-gradient(90deg,var(--green),var(--amber),var(--coral));border-radius:6px;}
+  .gauge-marker{
+    position:absolute;top:-4px;width:2px;height:18px;background:var(--navy-deep);
+  }
+  .gauge-val{font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:600;color:var(--navy-deep);white-space:nowrap;}
+
+  .kpi-grid{
+    display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:24px;
+  }
+  .kpi{
+    background:var(--card);border:1px solid var(--border);border-radius:14px;
+    padding:18px 18px 16px;position:relative;overflow:hidden;
+  }
+  .kpi .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:500;}
+  .kpi .value{font-family:'Sora',sans-serif;font-weight:700;font-size:24px;margin-top:8px;color:var(--navy-deep);}
+  .kpi .delta{font-family:'IBM Plex Mono',monospace;font-size:12px;margin-top:6px;display:inline-flex;align-items:center;gap:4px;}
+  .delta.pos{color:var(--green);}
+  .delta.neg{color:var(--coral);}
+  .kpi::after{
+    content:"";position:absolute;top:0;left:0;width:4px;height:100%;background:var(--violet);
+  }
+  .kpi:nth-child(2)::after{background:var(--coral);}
+  .kpi:nth-child(3)::after{background:var(--green);}
+  .kpi:nth-child(4)::after{background:var(--amber);}
+  .kpi:nth-child(5)::after{background:var(--navy-deep);}
+
+  .grid{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px;}
+  .grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;}
+  .card{
+    background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;
+  }
+  .card h3{
+    font-family:'Sora',sans-serif;font-size:15px;margin:0 0 2px;color:var(--navy-deep);
+  }
+  .card .card-sub{font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .chart-box{position:relative;width:100%;}
+
+  .rank-list{list-style:none;margin:0;padding:0;}
+  .rank-list li{
+    display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px dashed var(--border);
+  }
+  .rank-list li:last-child{border-bottom:none;}
+  .rank-name{font-size:13px;font-weight:500;flex:1;min-width:0;}
+  .rank-bar-track{flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;max-width:90px;}
+  .rank-bar-fill{height:100%;background:var(--coral);border-radius:3px;}
+  .rank-val{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--navy-deep);width:48px;text-align:right;flex-shrink:0;}
+
+  table.cohort{width:100%;border-collapse:collapse;font-size:11px;}
+  table.cohort th{
+    text-align:center;font-weight:600;color:var(--muted);padding:5px 4px;font-size:10.5px;
+    border-bottom:1px solid var(--border);
+  }
+  table.cohort th:first-child{text-align:left;}
+  table.cohort td{padding:6px 4px;text-align:center;font-family:'IBM Plex Mono',monospace;}
+  table.cohort td.cohort-label{text-align:left;font-family:'Inter',sans-serif;font-weight:600;color:var(--navy-deep);white-space:nowrap;}
+
+  .insights{margin-top:16px;}
+  .insights-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  .insight-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px 22px;}
+  .insight-card h3{font-family:'Sora',sans-serif;font-size:15px;margin:0 0 12px;color:var(--navy-deep);}
+  .insight-card ol,.insight-card ul{margin:0;padding-left:18px;}
+  .insight-card li{font-size:13.5px;line-height:1.65;margin-bottom:8px;color:#2A3340;}
+  .insight-card li b{color:var(--navy-deep);}
+  .tag{
+    display:inline-block;font-family:'IBM Plex Mono',monospace;font-size:10px;
+    background:var(--violet-soft);color:var(--violet);padding:2px 7px;border-radius:5px;margin-right:6px;
+  }
+  .tag.coral{background:var(--coral-soft);color:var(--coral);}
+  .tag.amber{background:#FBEED9;color:#8A6314;}
+
+  footer{margin-top:28px;text-align:center;color:var(--muted);font-size:11.5px;font-family:'IBM Plex Mono',monospace;}
+
+  @media (max-width:1100px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .grid,.grid-3,.insights-grid{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="brand-eyebrow">Orbit SaaS · Customer Retention Analytics</div>
+      <h1>Churn & Retention Dashboard</h1>
+      <div class="subtitle">Cohort behavior, churn drivers & retention strategy — client-ready summary</div>
+    </div>
+    <div class="period-pill">JAN 2024 – DEC 2025 · 4,636 CUSTOMERS</div>
+  </header>
+
+  <div class="gauge-row">
+    <div class="gauge-label">CHURN RATE</div>
+    <div class="gauge-track">
+      <div class="gauge-fill" style="width:32.16%;"></div>
+      <div class="gauge-marker" style="left:32.16%;"></div>
+    </div>
+    <div class="gauge-val">32.2% churned · 67.8% retained</div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="label">Total Customers</div>
+      <div class="value">4,636</div>
+      <div class="delta pos">since Jan 2024</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Churn Rate</div>
+      <div class="value">32.2%</div>
+      <div class="delta neg">1,491 customers lost</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Active Customers</div>
+      <div class="value">3,145</div>
+      <div class="delta pos">67.8% retained</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Avg. Customer Tenure</div>
+      <div class="value">8.6 mo</div>
+      <div class="delta pos">before churn/today</div>
+    </div>
+    <div class="kpi">
+      <div class="label">Active MRR</div>
+      <div class="value">₹51.1L</div>
+      <div class="delta neg">₹19.7L/mo lost to churn</div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Cohort Retention Curve</h3>
+      <div class="card-sub">% of each signup cohort still active, month by month</div>
+      <div class="chart-box" style="height:290px;"><canvas id="cohortLineChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Top Churn Reasons</h3>
+      <div class="card-sub">Self-reported reason at cancellation</div>
+      <ul class="rank-list" id="reasonsList"></ul>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card">
+      <h3>Churn Rate by Plan</h3>
+      <div class="card-sub">Basic churns 2x more than Enterprise</div>
+      <div class="chart-box" style="height:220px;"><canvas id="planChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Churn by Product Usage</h3>
+      <div class="card-sub">Engagement score vs. churn rate</div>
+      <div class="chart-box" style="height:220px;"><canvas id="usageChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Churn by Support Tickets</h3>
+      <div class="card-sub">More tickets, more churn risk</div>
+      <div class="chart-box" style="height:220px;"><canvas id="supportChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:1fr 1fr;">
+    <div class="card">
+      <h3>New Signups vs. Churned Customers</h3>
+      <div class="card-sub">Monthly trend, Jan 2024 – Dec 2025</div>
+      <div class="chart-box" style="height:250px;"><canvas id="trendChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h3>Churn Rate by Acquisition Channel</h3>
+      <div class="card-sub">Where retained customers actually come from</div>
+      <div class="chart-box" style="height:250px;"><canvas id="acqChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px;">
+    <h3>Cohort Retention Matrix</h3>
+    <div class="card-sub">% of customers still active, N months after signup (first 12 monthly cohorts)</div>
+    <table class="cohort" id="cohortTable"></table>
+  </div>
+
+  <div class="insights">
+    <div class="insights-grid">
+      <div class="insight-card">
+        <h3>📌 Key Insights</h3>
+        <ol>
+          <li><span class="tag">Churn</span>Overall churn stands at <b>32.2%</b>, with the sharpest drop-off in the <b>first 3 months</b> — early-life churn is the single biggest leak in the funnel.</li>
+          <li><span class="tag coral">Plan</span><b>Basic plan</b> churns at <b>36.9%</b> vs. just <b>24.0%</b> for Enterprise — cheaper plans attract less-committed customers.</li>
+          <li><span class="tag">Reason</span><b>Missing features</b> and <b>pricing</b> together account for over 40% of churn reasons — more than support issues.</li>
+          <li><span class="tag amber">Engagement</span>Customers in the <b>lowest usage bracket churn at ~37%</b> vs. <b>27%</b> for highly engaged users — usage is a leading indicator, not just a symptom.</li>
+          <li><span class="tag coral">Support</span>Customers with <b>5+ support tickets churn 36.6%</b> of the time vs. <b>28.3%</b> for zero-ticket customers — unresolved friction predicts churn.</li>
+          <li><span class="tag">Channel</span><b>Partnership-acquired</b> customers churn least (26.1%); <b>Social Media-acquired</b> customers churn most (35.4%) — acquisition quality varies a lot by channel.</li>
+        </ol>
+      </div>
+      <div class="insight-card">
+        <h3>🎯 Recommendations</h3>
+        <ul>
+          <li><b>Fix the first 90 days:</b> Build a structured onboarding flow (checklists, milestone emails, an early check-in call) — most churn happens before month 3.</li>
+          <li><b>Re-position Basic plan value:</b> Either add a lightweight "starter" feature set that reduces cancellations, or nudge engaged Basic users toward Pro with usage-based prompts.</li>
+          <li><b>Close the feature gap:</b> Prioritize the most-requested "missing features" from churn exit surveys — this is the #1 stated reason for leaving.</li>
+          <li><b>Trigger win-back workflows on low usage:</b> Flag accounts whose usage score drops below 50 for proactive outreach, before they reach the cancellation page.</li>
+          <li><b>Tighten support SLAs:</b> Customers with 3+ tickets are meaningfully more likely to churn — track ticket count as an early-warning signal, not just a support metric.</li>
+          <li><b>Double down on Partnership & Organic channels:</b> They bring in the stickiest customers; consider reallocating some paid/social budget toward partnerships and referral programs.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <footer>Customer Retention & Churn Analysis · Sample/simulated SaaS dataset built for internship task demonstration · Generated with Python (pandas) + Chart.js</footer>
+</div>
+
+<script>
+const DATA = {"kpis": {"total_customers": 4636, "churned_customers": 1491, "active_customers": 3145, "churn_rate": 32.16, "retention_rate": 67.84, "avg_tenure": 8.59, "mrr_active": 5113355.0, "mrr_churned_lost": 1970509.0, "avg_mrr_per_customer": 1528.01}, "plan_churn": [{"Plan": "Basic", "Customers": 2298, "Churned": 849, "Churn_Rate": 36.945169712793735}, {"Plan": "Pro", "Customers": 1643, "Churned": 475, "Churn_Rate": 28.910529519172247}, {"Plan": "Enterprise", "Customers": 695, "Churned": 167, "Churn_Rate": 24.028776978417266}], "region_churn": [{"Region": "West", "Customers": 1032, "Churned": 344, "Churn_Rate": 33.33333333333333}, {"Region": "North", "Customers": 1268, "Churned": 415, "Churn_Rate": 32.72870662460568}, {"Region": "East", "Customers": 1209, "Churned": 388, "Churn_Rate": 32.09263854425144}, {"Region": "South", "Customers": 1127, "Churned": 344, "Churn_Rate": 30.523513753327418}], "acq_churn": [{"Acquisition_Channel": "Social Media", "Customers": 742, "Churned": 263, "Churn_Rate": 35.44474393530997}, {"Acquisition_Channel": "Paid Ads", "Customers": 1214, "Churned": 413, "Churn_Rate": 34.01976935749588}, {"Acquisition_Channel": "Referral", "Customers": 934, "Churned": 305, "Churn_Rate": 32.65524625267666}, {"Acquisition_Channel": "Organic Search", "Customers": 1397, "Churned": 419, "Churn_Rate": 29.992841803865428}, {"Acquisition_Channel": "Partnership", "Customers": 349, "Churned": 91, "Churn_Rate": 26.07449856733524}], "reasons": [{"Reason": "Missing features", "Count": 305, "Pct": 20.4560697518444}, {"Reason": "Too expensive", "Count": 299, "Pct": 20.05365526492287}, {"Reason": "Poor support experience", "Count": 274, "Pct": 18.376928236083163}, {"Reason": "Switched to competitor", "Count": 252, "Pct": 16.901408450704224}, {"Reason": "No longer needed", "Count": 216, "Pct": 14.486921529175051}, {"Reason": "Low product usage", "Count": 145, "Pct": 9.725016767270288}], "tenure_dist": [{"Tenure_Bucket": "0-3 mo", "Customers": 1130, "Churned": 614, "Churn_Rate": 54.336283185840706}, {"Tenure_Bucket": "4-6 mo", "Customers": 961, "Churned": 318, "Churn_Rate": 33.09053069719043}, {"Tenure_Bucket": "7-12 mo", "Customers": 1352, "Churned": 360, "Churn_Rate": 26.627218934911244}, {"Tenure_Bucket": "13-18 mo", "Customers": 810, "Churned": 160, "Churn_Rate": 19.753086419753085}, {"Tenure_Bucket": "19-24 mo", "Customers": 383, "Churned": 39, "Churn_Rate": 10.182767624020887}], "usage_churn": [{"Usage_Bucket": "0-25 (Low)", "Customers": 144, "Churned": 44, "Churn_Rate": 30.555555555555557}, {"Usage_Bucket": "26-50 (Med-Low)", "Customers": 1139, "Churned": 422, "Churn_Rate": 37.050043898156275}, {"Usage_Bucket": "51-75 (Med-High)", "Customers": 2235, "Churned": 722, "Churn_Rate": 32.304250559284114}, {"Usage_Bucket": "76-100 (High)", "Customers": 1118, "Churned": 303, "Churn_Rate": 27.101967799642217}], "supp_churn": [{"Support_Bucket": "0 tickets", "Customers": 368, "Churned": 104, "Churn_Rate": 28.26086956521739}, {"Support_Bucket": "1-2 tickets", "Customers": 2164, "Churned": 660, "Churn_Rate": 30.499075785582253}, {"Support_Bucket": "3-4 tickets", "Customers": 1628, "Churned": 553, "Churn_Rate": 33.96805896805897}, {"Support_Bucket": "5+ tickets", "Customers": 476, "Churned": 174, "Churn_Rate": 36.554621848739494}], "cohort_matrix": [{"Cohort": "2024-01", "Size": 146, "M0": 100.0, "M1": 95.9, "M2": 89.0, "M3": 86.3, "M4": 81.5, "M5": 77.4, "M6": 76.7, "M7": 74.7, "M8": 72.6, "M9": 69.9, "M10": 67.8, "M11": 65.8}, {"Cohort": "2024-02", "Size": 147, "M0": 100.0, "M1": 98.6, "M2": 97.3, "M3": 95.2, "M4": 91.8, "M5": 89.1, "M6": 87.1, "M7": 84.4, "M8": 81.0, "M9": 78.2, "M10": 75.5, "M11": 74.1}, {"Cohort": "2024-03", "Size": 126, "M0": 100.0, "M1": 97.6, "M2": 92.9, "M3": 91.3, "M4": 85.7, "M5": 82.5, "M6": 78.6, "M7": 71.4, "M8": 69.8, "M9": 69.0, "M10": 66.7, "M11": 64.3}, {"Cohort": "2024-04", "Size": 143, "M0": 100.0, "M1": 95.8, "M2": 93.7, "M3": 91.6, "M4": 86.7, "M5": 83.2, "M6": 81.1, "M7": 76.9, "M8": 72.0, "M9": 67.8, "M10": 66.4, "M11": 62.9}, {"Cohort": "2024-05", "Size": 188, "M0": 100.0, "M1": 98.4, "M2": 92.6, "M3": 90.4, "M4": 88.3, "M5": 84.6, "M6": 83.0, "M7": 78.2, "M8": 75.5, "M9": 72.9, "M10": 72.3, "M11": 68.6}, {"Cohort": "2024-06", "Size": 183, "M0": 100.0, "M1": 97.3, "M2": 93.4, "M3": 88.0, "M4": 83.1, "M5": 80.9, "M6": 77.6, "M7": 73.8, "M8": 71.6, "M9": 70.5, "M10": 67.8, "M11": 63.9}, {"Cohort": "2024-07", "Size": 172, "M0": 100.0, "M1": 95.9, "M2": 93.6, "M3": 87.8, "M4": 85.5, "M5": 83.1, "M6": 80.8, "M7": 78.5, "M8": 74.4, "M9": 72.7, "M10": 68.0, "M11": 66.3}, {"Cohort": "2024-08", "Size": 180, "M0": 100.0, "M1": 96.1, "M2": 91.1, "M3": 88.9, "M4": 84.4, "M5": 81.7, "M6": 80.6, "M7": 78.9, "M8": 75.6, "M9": 72.2, "M10": 69.4, "M11": 67.2}, {"Cohort": "2024-09", "Size": 164, "M0": 100.0, "M1": 95.7, "M2": 90.2, "M3": 87.8, "M4": 86.6, "M5": 82.9, "M6": 79.3, "M7": 76.2, "M8": 74.4, "M9": 72.0, "M10": 71.3, "M11": 67.1}, {"Cohort": "2024-10", "Size": 223, "M0": 100.0, "M1": 96.0, "M2": 93.3, "M3": 89.2, "M4": 87.0, "M5": 85.2, "M6": 82.1, "M7": 78.5, "M8": 76.7, "M9": 74.4, "M10": 73.5, "M11": 70.9}, {"Cohort": "2024-11", "Size": 201, "M0": 100.0, "M1": 96.5, "M2": 94.0, "M3": 92.5, "M4": 90.5, "M5": 87.6, "M6": 84.1, "M7": 81.6, "M8": 78.6, "M9": 76.1, "M10": 73.6, "M11": 72.1}, {"Cohort": "2024-12", "Size": 227, "M0": 100.0, "M1": 97.8, "M2": 95.6, "M3": 93.0, "M4": 89.4, "M5": 85.9, "M6": 85.0, "M7": 82.4, "M8": 78.9, "M9": 77.1, "M10": 77.1, "M11": 74.9}], "trend": [{"Month": "2024-01", "New_Signups": 146.0, "Churned_Customers": 6}, {"Month": "2024-02", "New_Signups": 147.0, "Churned_Customers": 12}, {"Month": "2024-03", "New_Signups": 126.0, "Churned_Customers": 11}, {"Month": "2024-04", "New_Signups": 143.0, "Churned_Customers": 20}, {"Month": "2024-05", "New_Signups": 188.0, "Churned_Customers": 19}, {"Month": "2024-06", "New_Signups": 183.0, "Churned_Customers": 31}, {"Month": "2024-07", "New_Signups": 172.0, "Churned_Customers": 37}, {"Month": "2024-08", "New_Signups": 180.0, "Churned_Customers": 45}, {"Month": "2024-09", "New_Signups": 164.0, "Churned_Customers": 60}, {"Month": "2024-10", "New_Signups": 223.0, "Churned_Customers": 49}, {"Month": "2024-11", "New_Signups": 201.0, "Churned_Customers": 56}, {"Month": "2024-12", "New_Signups": 227.0, "Churned_Customers": 58}, {"Month": "2025-01", "New_Signups": 220.0, "Churned_Customers": 52}, {"Month": "2025-02", "New_Signups": 223.0, "Churned_Customers": 53}, {"Month": "2025-03", "New_Signups": 240.0, "Churned_Customers": 80}, {"Month": "2025-04", "New_Signups": 245.0, "Churned_Customers": 96}, {"Month": "2025-05", "New_Signups": 229.0, "Churned_Customers": 86}, {"Month": "2025-06", "New_Signups": 259.0, "Churned_Customers": 109}, {"Month": "2025-07", "New_Signups": 298.0, "Churned_Customers": 108}, {"Month": "2025-08", "New_Signups": 237.0, "Churned_Customers": 106}, {"Month": "2025-09", "New_Signups": 289.0, "Churned_Customers": 84}, {"Month": "2025-10", "New_Signups": 296.0, "Churned_Customers": 111}, {"Month": "2025-11", "New_Signups": 0.0, "Churned_Customers": 102}, {"Month": "2025-12", "New_Signups": 0.0, "Churned_Customers": 100}]};
+
+const violet = '#5B4FE0', coral = '#D14B4B', amber = '#E2A63B', green='#1F9D6E', navy='#181A3D', muted='#9AA3B2';
+const gridColor = '#EDEFF3';
+
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.color = '#71798A';
+
+// ---------- Cohort retention curve (average across cohorts + best/worst) ----------
+(function(){
+  const months = [...Array(12).keys()].map(i=>'M'+i);
+  const cohorts = DATA.cohort_matrix;
+  const avg = months.map(m => {
+    const vals = cohorts.map(c=>c[m]).filter(v=>v!==null && v!==undefined);
+    return vals.reduce((a,b)=>a+b,0)/vals.length;
+  });
+  const best = cohorts.reduce((a,b)=> (b['M11']||0) > (a['M11']||0) ? b : a);
+  const worst = cohorts.reduce((a,b)=> (b['M11']||0) < (a['M11']||0) ? b : a);
+
+  new Chart(document.getElementById('cohortLineChart'), {
+    type:'line',
+    data:{
+      labels: months,
+      datasets:[
+        { label:'Average cohort', data: avg, borderColor: violet, backgroundColor:'rgba(91,79,224,0.08)', fill:true, tension:0.3, borderWidth:2.5, pointRadius:2 },
+        { label:`Best cohort (${best.Cohort})`, data: months.map(m=>best[m]), borderColor: green, borderDash:[4,3], fill:false, tension:0.3, borderWidth:2, pointRadius:0 },
+        { label:`Worst cohort (${worst.Cohort})`, data: months.map(m=>worst[m]), borderColor: coral, borderDash:[4,3], fill:false, tension:0.3, borderWidth:2, pointRadius:0 },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      plugins:{ legend:{position:'top', align:'end', labels:{boxWidth:10, font:{size:10.5}, usePointStyle:true}} },
+      scales:{
+        y:{ min:0, max:100, grid:{color:gridColor}, ticks:{ callback:v=>v+'%' } },
+        x:{ grid:{display:false}, title:{display:true, text:'Months since signup', font:{size:11}} }
+      }
+    }
+  });
+})();
+
+// ---------- Churn reasons ----------
+(function(){
+  const list = document.getElementById('reasonsList');
+  const max = DATA.reasons[0].Count;
+  DATA.reasons.forEach(r=>{
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <span class="rank-name">${r.Reason}</span>
+      <span class="rank-bar-track"><span class="rank-bar-fill" style="width:${(r.Count/max*100).toFixed(0)}%"></span></span>
+      <span class="rank-val">${r.Pct.toFixed(0)}%</span>
+    `;
+    list.appendChild(li);
+  });
+})();
+
+// ---------- Plan churn ----------
+new Chart(document.getElementById('planChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.plan_churn.map(p=>p.Plan),
+    datasets:[{ data: DATA.plan_churn.map(p=>p.Churn_Rate), backgroundColor:[coral, amber, green], borderRadius:5, maxBarThickness:44 }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{ y:{ min:0, max:50, grid:{color:gridColor}, ticks:{ callback:v=>v+'%' } }, x:{ grid:{display:false} } }
+  }
+});
+
+// ---------- Usage churn ----------
+new Chart(document.getElementById('usageChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.usage_churn.map(u=>u.Usage_Bucket),
+    datasets:[{ data: DATA.usage_churn.map(u=>u.Churn_Rate), backgroundColor: violet, borderRadius:5, maxBarThickness:36 }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{ y:{ min:0, max:50, grid:{color:gridColor}, ticks:{ callback:v=>v+'%' } }, x:{ grid:{display:false}, ticks:{font:{size:9.5}} } }
+  }
+});
+
+// ---------- Support churn ----------
+new Chart(document.getElementById('supportChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.supp_churn.map(s=>s.Support_Bucket),
+    datasets:[{ data: DATA.supp_churn.map(s=>s.Churn_Rate), backgroundColor: coral, borderRadius:5, maxBarThickness:36 }]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{ y:{ min:0, max:50, grid:{color:gridColor}, ticks:{ callback:v=>v+'%' } }, x:{ grid:{display:false}, ticks:{font:{size:9.5}} } }
+  }
+});
+
+// ---------- Signup vs churn trend ----------
+new Chart(document.getElementById('trendChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.trend.map(t=>t.Month),
+    datasets:[
+      { label:'New Signups', data: DATA.trend.map(t=>t.New_Signups), backgroundColor: violet, borderRadius:4, maxBarThickness:16 },
+      { label:'Churned', data: DATA.trend.map(t=>t.Churned_Customers), backgroundColor: coral, borderRadius:4, maxBarThickness:16 }
+    ]
+  },
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{position:'top', align:'end', labels:{boxWidth:10, font:{size:10.5}, usePointStyle:true}} },
+    scales:{
+      y:{ grid:{color:gridColor} },
+      x:{ grid:{display:false}, ticks:{maxRotation:60, minRotation:60, autoSkip:true, maxTicksLimit:12, font:{size:9.5}} }
+    }
+  }
+});
+
+// ---------- Acquisition channel churn ----------
+new Chart(document.getElementById('acqChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.acq_churn.map(a=>a.Acquisition_Channel),
+    datasets:[{ data: DATA.acq_churn.map(a=>a.Churn_Rate), backgroundColor: amber, borderRadius:5, maxBarThickness:28 }]
+  },
+  options:{
+    indexAxis:'y',
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{ x:{ min:0, max:50, grid:{color:gridColor}, ticks:{ callback:v=>v+'%' } }, y:{ grid:{display:false}, ticks:{font:{size:10.5}} } }
+  }
+});
+
+// ---------- Cohort matrix table ----------
+(function(){
+  const table = document.getElementById('cohortTable');
+  const months = [...Array(12).keys()].map(i=>'M'+i);
+  let thead = '<tr><th>Cohort</th><th>Size</th>' + months.map(m=>`<th>${m}</th>`).join('') + '</tr>';
+  let rows = DATA.cohort_matrix.map(row=>{
+    let cells = months.map(m=>{
+      const v = row[m];
+      if(v===null || v===undefined) return '<td style="color:#C7CCD6;">—</td>';
+      const intensity = v/100;
+      const bg = `rgba(91,79,224,${(0.06+intensity*0.55).toFixed(2)})`;
+      const textColor = intensity>0.65 ? '#fff' : '#181A3D';
+      return `<td style="background:${bg};color:${textColor};">${v.toFixed(0)}%</td>`;
+    }).join('');
+    return `<tr><td class="cohort-label">${row.Cohort}</td><td>${row.Size}</td>${cells}</tr>`;
+  }).join('');
+  table.innerHTML = thead + rows;
+})();
+</script>
+</body>
+</html>
